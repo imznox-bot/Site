@@ -35,6 +35,8 @@ const server = http.createServer(async (req, res) => {
   }
   res.writeHead(404); res.end('404');
 });
+process.on('uncaughtException', e => console.error('Erro:', e.message));
+process.on('unhandledRejection', e => console.error('Erro:', e && e.message || e));
 const wss = new WebSocketServer({ server });
 let fila = [], tocando = null; const pedidos = {};
 const estadoObj = () => ({ t: 'musica', tocando, fila });
@@ -94,7 +96,9 @@ const foto = d => d.profilePictureUrl || d.user?.profilePicture?.url?.[0] || d.u
 const quem = d => ({ id: d.uniqueId || d.user?.uniqueId || 'anonimo', name: d.nickname || d.user?.nickname || '', foto: foto(d) });
 
 function conectar() {
-  const c = new Conn(TIKTOK_USER.replace('@', '').trim());
+  let c;
+  try { c = new Conn(TIKTOK_USER.replace('@', '').trim(), {}); }
+  catch (e) { console.error('Erro ao iniciar a conexão com o TikTok:', e.message); return setTimeout(conectar, 15000); }
   c.connect().then(() => console.log('✅ Conectado na live de', TIKTOK_USER))
     .catch(e => { console.error('❌ Não conectou (a live precisa estar AO VIVO):', e.message || e); setTimeout(conectar, 15000); });
   c.on('chat', d => {
@@ -105,7 +109,7 @@ function conectar() {
   c.on('like', d => enviar({ t: 'like', n: d.likeCount || 1 }));
   c.on('gift', d => {
     const gt = d.giftType ?? d.giftDetails?.giftType;
-    if (gt === 1 && d.repeatEnd === false) return;      // espera o combo terminar
+    if (gt === 1 && !d.repeatEnd) return;      // espera o combo terminar
     enviar({ t: 'gift', ...quem(d), gift: d.giftName || d.giftDetails?.giftName || 'presente',
       d: (d.diamondCount || d.giftDetails?.diamondCount || 1) * (d.repeatCount || 1) });
   });
