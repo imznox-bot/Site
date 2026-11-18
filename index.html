@@ -75,18 +75,24 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:'Lili
 #stats{left:150px;right:auto;width:372px;font-size:14px;top:604px}#barra{left:200px;width:270px;top:628px}
 #presentes{left:346px;width:176px}#balao{width:178px}
 #pincel{transform-origin:6px 60px;z-index:5}
+#som{position:fixed;right:8px;top:8px;z-index:30;font-size:20px;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .4s;background:#000a;border-radius:50%;width:36px;height:36px;text-align:center;line-height:36px;user-select:none}
+.bq{font-size:11px;color:#7a7a99;margin-bottom:3px}
+.falando .boca{display:none}.falando .boca2{display:block;animation:abre .3s ease-in-out infinite alternate}@keyframes abre{from{opacity:.25}to{opacity:1}}
+#fase{left:28px;width:86px}#rec{left:120px;width:176px}#tema{left:302px;top:78px;width:210px;height:50px}#vip{top:136px}
+#pista{left:12px;right:12px;top:552px;text-align:center;font-size:13px;color:#fff;-webkit-text-stroke:.6px #1a0a3d;paint-order:stroke fill;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
 </style></head><body>
 <div id="teste"><input id="tn" value="amigo"><input id="tx" placeholder="palpite"><button id="bc">Enviar</button>
 <button id="bl">+30 curtidas</button><button id="bn">Próximo desenho</button><button id="g1">Presente 1</button><button id="g5">Presente 5</button><button id="g30">Presente 30</button></div>
+<div id="som">🔊</div>
 <div id="stage">
 <div id="piso"></div><div id="sombra"></div>
 <div id="titulo"><img data-e="1f3a8" class="emo" width="28" height="28">Adivinhe o <b>DESENHO</b> no chat!<img data-e="2728" class="emo" width="28" height="28"></div>
-<div id="fase" class="cx">FASE<b>1</b></div><div id="rec" class="cx"><img data-e="1f3c6" class="emo tr" width="30" height="30">RECORDE DA LIVE<b>FASE 1</b></div>
+<div id="fase" class="cx">FASE<b>1</b></div><div id="rec" class="cx"><img data-e="1f3c6" class="emo tr" width="30" height="30">RECORDE DA LIVE<b>FASE 1</b></div><div id="tema" class="cx">TEMA<b></b></div>
 <div class="leg" style="left:100px;transform:rotate(8deg)"></div><div class="leg" style="left:435px;transform:rotate(-8deg)"></div>
 <div id="tela"><svg id="svg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg></div>
 <div id="ledge"></div>
 <svg id="pincel" width="44" height="64" viewBox="0 0 44 64"><path d="M38 4L16 42" stroke="#c98a4b" stroke-width="7" stroke-linecap="round"/><path d="M17 40L11 50" stroke="#cfd8dc" stroke-width="9" stroke-linecap="round"/><path id="ponta" d="M12 48Q6 52 6 60Q15 58 17 50Z" fill="#ffd400" stroke="#1b0a4a" stroke-width="1.5"/><g transform="translate(6 60)"><path class="fag" d="M0 -7L2 -2L7 0L2 2L0 7L-2 2L-7 0L-2 -2Z" fill="#fff" stroke="#ffd400"/></g></svg>
-<div id="letras"></div>
+<div id="letras"></div><div id="pista"></div>
 <div id="legenda">Adivinhe no chat!</div>
 <div id="stats"></div><div id="barra"><div id="fill"></div></div>
 <svg id="sapo" viewBox="0 0 160 190" class="pintando"><defs><radialGradient id="gv" cx="40%" cy="30%" r="85%"><stop offset="0" stop-color="#b9f78c"/><stop offset="1" stop-color="#4fc35a"/></radialGradient><linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5a5a"/><stop offset="1" stop-color="#c81e1e"/></linearGradient></defs>
@@ -126,7 +132,7 @@ for (let i = 0; i < 16; i++) { const b = document.createElement('i'); b.classNam
   $('stage').insertBefore(b, $('titulo')); }
 const humor = c => $('sapo').setAttribute('class', c);
 function olhar(x, y) { let ox = 0, oy = 0; if (x != null) { const dx = x - 87, dy = y - 639, d = Math.hypot(dx, dy) || 1; ox = dx / d * 5; oy = dy / d * 5; } $('pup').setAttribute('transform', `translate(${ox} ${oy})`); }
-function confete() { const stg = $('stage'), cor = ['#ff4d6d', '#ffd400', '#4dabf7', '#51cf66', '#b266ff', '#ff922b'];
+function confete() { som.plim(); const stg = $('stage'), cor = ['#ff4d6d', '#ffd400', '#4dabf7', '#51cf66', '#b266ff', '#ff922b'];
   for (let i = 0; i < 46; i++) { const d = document.createElement('i'); d.className = 'cf'; d.style.background = cor[i % 6]; stg.appendChild(d);
     const a = Math.random() * 6.283, v = 140 + Math.random() * 260;
     d.animate([{ transform: 'translate(0,0) rotate(0)', opacity: 1 }, { transform: `translate(${Math.cos(a) * v}px,${Math.sin(a) * v + 180}px) rotate(${Math.random() * 720}deg)`, opacity: 0 }],
@@ -143,7 +149,35 @@ function mk(sh) {
   return { el, pts, cum, len: cum[cum.length - 1], closed: k != 'l', bb: { x: x0, y: y0, width: Math.max(...xs) - x0, height: Math.max(...ys) - y0 }, fill: k == 'l' ? null : fill, stroke };
 }
 
+// ---------- Som (música de fundo criada no próprio navegador: sem arquivo e sem direitos autorais) ----------
+const som = (() => {
+  const q = new URLSearchParams(location.search), BPM = 96; let ac = null, mestre, ligado = q.get('som') !== '0', mudo = false, passo = 0, prox = 0;
+  const vol = Math.min(100, +q.get('vol') || 40) / 100 * .35, mtof = m => 440 * 2 ** ((m - 69) / 12);
+  const acordes = [[48, 52, 55], [45, 48, 52], [41, 45, 48], [43, 47, 50]], motivo = [76, 0, 79, 0, 76, 74, 72, 0, 72, 0, 76, 0, 72, 71, 69, 0], arp = [0, 1, 2, 1, 0, 1, 2, 1];
+  function nota(t, m, d, tipo, g) { const o = ac.createOscillator(), e = ac.createGain(); o.type = tipo; o.frequency.value = mtof(m); e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(g, t + .015); e.gain.exponentialRampToValueAtTime(.0001, t + d); o.connect(e); e.connect(mestre); o.start(t); o.stop(t + d + .05); }
+  function agendar() {
+    if (!ac || ac.state !== 'running') return; const dur = 60 / BPM / 2; if (prox < ac.currentTime) prox = ac.currentTime + .05;
+    while (prox < ac.currentTime + .4) {
+      const i = passo & 7, ch = acordes[passo >> 3 & 3];
+      if (ligado && !mudo) { nota(prox, ch[arp[i]] + 12, dur * 1.8, 'triangle', .5); if (i == 0) nota(prox, ch[0] - 12, dur * 7, 'sine', .8); const m = motivo[passo % 16]; if (m) nota(prox, m, dur * 2.4, 'sine', .35); }
+      prox += dur; passo++;
+    }
+  }
+  function iniciar() { try { if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); mestre = ac.createGain(); mestre.gain.value = vol; mestre.connect(ac.destination); setInterval(agendar, 100); } if (ac.state !== 'running') ac.resume(); } catch {} }
+  const toca = f => { if (ac && ac.state === 'running' && ligado) f(ac.currentTime); };
+  ['pointerdown', 'keydown', 'touchstart'].forEach(e => addEventListener(e, iniciar)); iniciar();
+  return { iniciar, ligado: () => ligado, ligar: b => { ligado = b; }, mudo: b => { mudo = b; },
+    plim: () => toca(t => [84, 88, 91, 96].forEach((m, i) => nota(t + i * .09, m, .6, 'sine', .5))), blip: () => toca(t => nota(t, 88, .3, 'sine', .45)),
+    triste: () => toca(t => [67, 64, 60].forEach((m, i) => nota(t + i * .2, m, .5, 'triangle', .5))) };
+})();
+const botSom = $('som'); let sv;
+const mostraSom = () => { botSom.style.opacity = .85; botSom.style.pointerEvents = 'auto'; clearTimeout(sv); sv = setTimeout(() => { botSom.style.opacity = 0; botSom.style.pointerEvents = 'none'; }, 5000); };
+botSom.textContent = som.ligado() ? '🔊' : '🔇';
+botSom.onclick = () => { som.iniciar(); som.ligar(!som.ligado()); botSom.textContent = som.ligado() ? '🔊' : '🔇'; };
+['pointermove', 'touchstart', 'pointerdown'].forEach(e => addEventListener(e, mostraSom)); mostraSom();
+
 // ---------- Estado (tudo vem do servidor: todas as telas mostram o mesmo jogo) ----------
+const TEMAEMO = { ANIMAIS: '1f43e', COMIDAS: '1f355', OBJETOS: '1f9f8', TRANSPORTES: '1f680', NATUREZA: '1f333' };
 let cur = null, st = 'idle', rAtual = -1, teBase = 0, teAt = 0, mSrv = 1, fase = 1, recorde = 1, likes = 0, nCertos = 0, revealed = new Set(), els = [], prog = 0, resVista = -1, revVisto = new Set(), chaveL = '', chaveH = '', chaveV = '';
 const teAgora = () => teBase + (performance.now() - teAt) / 1000 * mSrv;
 function hud() {
@@ -171,7 +205,7 @@ function vip(lista) {
 function toast(t) { const e = $('balao'); e.textContent = t; e.style.opacity = 1; e.style.transform = 'scale(1)'; clearTimeout(toast.t); toast.t = setTimeout(() => { e.style.opacity = 0; e.style.transform = 'scale(.8)'; }, 3500); }
 function mostrarRes(res) {
   const r1 = $('res1'), r2 = $('res2'); r1.textContent = ''; r2.textContent = '';
-  if (!res.ok) { r1.append(h('f', 'NINGUÉM ACERTOU'), h('s', 'ERA'), h('w', res.palavra)); r1.style.display = 'block'; humor('triste'); return; }
+  if (!res.ok) { r1.append(h('f', 'NINGUÉM ACERTOU'), h('s', 'ERA'), h('w', res.palavra)); r1.style.display = 'block'; humor('triste'); som.triste(); return; }
   r1.append(h('f', `FASE ${res.fase}!`)); if (res.novoRec) r1.append(h('s', 'NOVO RECORDE DA LIVE!'));
   r1.append(h('s', 'ERA'), h('w', res.palavra), h('s', `${res.n} acertaram · 1º @${res.p.id}`)); r1.style.display = 'block';
   const hd = h('f', ''), ln = h('', ''); hd.append(emo('1f451', 34, 1), ' FOI CERTEIRO! ', emo('1f389', 34, 1)); ln.style.cssText = 'display:flex;align-items:center;gap:10px;font-size:24px;margin:2px 0'; ln.append(av(res.p, 44), '@' + res.p.id);
@@ -180,7 +214,15 @@ function mostrarRes(res) {
   r2.append(h('s', `TODO MUNDO QUE PONTUOU (${res.nTodos})`)); const rt = document.createElement('div'); res.todos.forEach(u => rt.appendChild(av(u, 26))); r2.appendChild(rt);
   r2.style.display = 'block'; humor('feliz pula');
 }
+const VOZ = new URLSearchParams(location.search).get('voz') === '1';
+function falaSapo(d) {
+  const e = $('balao'); e.textContent = ''; if (d.user) e.append(h('bq', `@${d.user}: ${d.q}`.slice(0, 48))); e.append(document.createTextNode(d.text));
+  e.style.opacity = 1; e.style.transform = 'scale(1)'; clearTimeout(toast.t); const dur = 3500 + d.text.length * 55; toast.t = setTimeout(() => { e.style.opacity = 0; e.style.transform = 'scale(.8)'; }, dur);
+  const sp = $('sapo'); sp.classList.add('falando'); clearTimeout(falaSapo.t); falaSapo.t = setTimeout(() => sp.classList.remove('falando'), Math.min(dur, 2500 + d.text.length * 45));
+  if (VOZ && window.speechSynthesis) { const u = new SpeechSynthesisUtterance(d.text); u.lang = 'pt-BR'; u.pitch = 1.4; u.rate = 1.05; speechSynthesis.cancel(); speechSynthesis.speak(u); }
+}
 function musica(d) {
+  som.mudo(!!d.tocando);   // se o Spotify está tocando, a música de fundo silencia
   const p = $('musica'); p.style.display = 'block'; p.textContent = '';
   const mt = h('mt', ''); mt.append(emo('1f3b5', 20), d.tocando ? ` Tocando: ${d.tocando.nome} — ${d.tocando.artista}` : ' Peça sua música no chat!');
   if (d.tocando) { const eq = document.createElement('span'); eq.className = 'eq'; eq.innerHTML = '<i></i><i></i><i></i>'; mt.append(eq); } p.append(mt);
@@ -247,9 +289,11 @@ function desenhar() {
 // @@FIM
 
 function aplicar(d) {
-  if (d.r !== rAtual) { rAtual = d.r; cur = DR[d.idx]; const svg = $('svg'); svg.textContent = ''; prog = 0; montar(svg); resVista = -1; chaveL = ''; revVisto = new Set(); humor('pintando'); $('res1').style.display = $('res2').style.display = 'none'; }
+  if (d.r === rAtual && d.rev.length > revealed.size) som.blip();
+  if (d.r !== rAtual) { rAtual = d.r; cur = DR[d.idx]; const svg = $('svg'); svg.textContent = ''; prog = 0; montar(svg); $('tema').lastChild.replaceChildren(emo(TEMAEMO[cur.c] || '2728', 22), ' ' + (cur.c || '')); resVista = -1; chaveL = ''; revVisto = new Set(); humor('pintando'); $('res1').style.display = $('res2').style.display = 'none'; }
   st = d.st; teBase = d.te; teAt = performance.now(); mSrv = d.m; fase = d.fase; recorde = d.recorde; likes = d.likes; nCertos = d.certos; revealed = new Set(d.rev);
   hud(); letras(st == 'result'); vip(d.vip);
+  const pt = d.pistas.length ? `PISTA ${d.pistas.length}/${d.np}: ${d.pistas[d.pistas.length - 1]}` : ''; if ($('pista').textContent !== pt) $('pista').textContent = pt;
   if (st == 'result') { if (resVista !== rAtual) { resVista = rAtual; mostrarRes(d.res); } }
   else { $('res1').style.display = $('res2').style.display = 'none'; resVista = -1; }
 }
@@ -262,7 +306,7 @@ let ws;
   if (!/^https?:$/.test(location.protocol)) return;   // aberto como arquivo: não tem servidor
   const w = ws = new WebSocket((location.protocol == 'https:' ? 'wss://' : 'ws://') + location.host);
   w.onmessage = e => { const d = JSON.parse(e.data);
-    if (d.t == 'estado') aplicar(d); if (d.t == 'toast' || d.t == 'aviso') toast(d.text); if (d.t == 'confete') confete(); if (d.t == 'musica') musica(d); };
+    if (d.t == 'estado') aplicar(d); if (d.t == 'toast' || d.t == 'aviso') toast(d.text); if (d.t == 'confete') confete(); if (d.t == 'fala') falaSapo(d); if (d.t == 'musica') musica(d); };
   w.onclose = () => setTimeout(conectar, 2000);
   setInterval(() => { if (w.readyState == 1) w.send('ping'); }, 25000);
 })();
