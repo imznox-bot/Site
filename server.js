@@ -61,9 +61,10 @@ const agora = () => Date.now() / 1000, users = {};
 const G = { fase: 1, recorde: 1, likes: 0, bag: [], ultimo: -1, r: 0, idx: 0, st: 'idle', te: 0, tempo: 40, fast: false, turboAte: 0, pista: 0, certos: [], erros: {}, rev: new Set(), janelaFim: 0, fimDesenho: 0, resFim: 0, t0: 0, res: null };
 const mult = () => G.fast ? 30 : agora() < G.turboAte ? 3.5 : 1;
 let ultSnap = 0, ultMult = 1;
+const dbg = { ev: {}, ult: '', n: 0 };   // diagnóstico: quantos eventos de cada tipo chegaram do TikTok
 const toast = text => enviar({ t: 'toast', text });
 function snapObj() {
-  return { t: 'estado', r: G.r, idx: G.idx, st: G.st, te: G.te, m: mult(), fase: G.fase, recorde: G.recorde, likes: G.likes, certos: G.certos.length, rev: [...G.rev], res: G.res, pistas: (DR[G.idx].p || []).slice(0, G.pista), np: (DR[G.idx].p || []).length,
+  return { t: 'estado', r: G.r, idx: G.idx, st: G.st, te: G.te, m: mult(), fase: G.fase, recorde: G.recorde, likes: G.likes, certos: G.certos.length, rev: [...G.rev], res: G.res, pistas: (DR[G.idx].p || []).slice(0, G.pista), np: (DR[G.idx].p || []).length, dbg: { c: dbg.ev.chat || 0, l: dbg.ev.like || 0, g: dbg.ev.gift || 0, u: dbg.ult },
     vip: Object.values(users).filter(u => u.score > 0).sort((a, b) => b.score - a.score).slice(0, 5).map(u => ({ id: u.id, foto: u.foto })) };
 }
 function snap() { ultSnap = Date.now(); ultMult = mult(); enviar(snapObj()); }
@@ -243,19 +244,27 @@ async function poll() {
 setInterval(() => { if (SP_ON && wss.clients.size) poll(); }, 6000);
 
 const foto = d => d.profilePictureUrl || d.user?.profilePicture?.url?.[0] || d.user?.profilePicture?.urls?.[0] || '';
-const quem = d => ({ id: d.uniqueId || d.user?.uniqueId || 'anonimo', name: d.nickname || d.user?.nickname || '', foto: foto(d) });
+const quem = d => ({ id: d.uniqueId || d.user?.uniqueId || d.user?.nickname || d.nickname || 'anonimo', name: d.nickname || d.user?.nickname || '', foto: foto(d) });
 
+function tratarChat(d) {
+  const txt = String(d.comment ?? d.text ?? d.content ?? ''), q = quem(d);
+  if (dbg.n++ < 5) console.log('💬 chat recebido:', JSON.stringify(d).slice(0, 300));
+  dbg.ult = `@${q.id}: ${txt}`.slice(0, 60);
+  const m = txt.match(/^\s*!mp\s+(.+)/i);
+  if (m) { if (SP_ON) pedirMusica(q.id, m[1]); return; }   // comando de música não vale como palpite
+  chat(q.id, q.foto, txt.slice(0, 100));
+}
+setInterval(() => { if (Object.keys(dbg.ev).length) console.log('📊 eventos recebidos do TikTok até agora:', JSON.stringify(dbg.ev)); }, 30000);
 function conectar() {
   let c;
-  try { c = new Conn(TIKTOK_USER.replace('@', '').trim(), {}); }
+  const opcoes = {}; if (process.env.TIKTOK_SESSIONID) opcoes.sessionId = process.env.TIKTOK_SESSIONID; if (process.env.TIKTOK_TT_TARGET_IDC) opcoes.ttTargetIdc = process.env.TIKTOK_TT_TARGET_IDC;
+  try { c = new Conn(TIKTOK_USER.replace('@', '').trim(), opcoes); }
   catch (e) { console.error('Erro ao iniciar a conexão com o TikTok:', e.message); return setTimeout(conectar, 15000); }
+  const emitir = c.emit.bind(c);   // conta todos os eventos que chegam (e aceita nomes parecidos com "chat")
+  c.emit = (ev, ...a) => { const k = String(ev); dbg.ev[k] = (dbg.ev[k] || 0) + 1; if (k !== 'chat' && /^(chat|comment)/i.test(k) && a[0] && typeof a[0] === 'object') tratarChat(a[0]); return emitir(ev, ...a); };
   c.connect().then(() => console.log('✅ Conectado na live de', TIKTOK_USER))
     .catch(e => { console.error('❌ Não conectou (a live precisa estar AO VIVO):', e.message || e); setTimeout(conectar, 15000); });
-  c.on('chat', d => {
-    const txt = String(d.comment || ''), m = txt.match(/^\s*!mp\s+(.+)/i);
-    if (m) { if (SP_ON) pedirMusica(quem(d).id, m[1]); return; }   // comando de música não vale como palpite
-    { const q = quem(d); chat(q.id, q.foto, txt.slice(0, 100)); }
-  });
+  c.on('chat', tratarChat);
   let likesTotal = 0, likeLogs = 0;
   c.on('like', d => {   // usa o total de curtidas da live para não perder nenhuma
     const cont = d.likeCount ?? d.count ?? 1, tot = d.totalLikeCount ?? d.total ?? 0;
